@@ -2,8 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"github.com/dustin/go-humanize"
-	"github.com/hashicorp/terraform/helper/resource"
 	"log"
 	"os"
 	"os/user"
@@ -12,13 +10,17 @@ import (
 	"sync"
 	"time"
 
-	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/terraform/helper/schema"
-	vbox "github.com/pyToshka/go-virtualbox"
+	"github.com/dustin/go-humanize"
+	"github.com/hashicorp/terraform/helper/resource"
+
 	"io"
 	"net/http"
 	"os/exec"
 	"runtime"
+
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/terraform/helper/schema"
+	vbox "github.com/pyToshka/go-virtualbox"
 )
 
 var (
@@ -151,33 +153,31 @@ var imageOpMutex sync.Mutex
 
 func resourceVMCreate(d *schema.ResourceData, meta interface{}) error {
 	/* TODO: allow partial updates */
-	var _, err = os.Stat(d.Get("image").(string))
+	image := d.Get("image").(string)
+	var _, err = os.Stat(image)
 	if os.IsNotExist(err) {
-		if len(d.Get("url").(string)) > 0 {
-			if len(d.Get("url").(string)) > 0 {
-				path := d.Get("image").(string)
-				url := d.Get("url").(string)
-				// Create the file
-				out, err := os.Create(path)
-				if err != nil {
-					return err
-				}
-				defer out.Close()
-				// Get the data
-				resp, err := http.Get(url)
-				if err != nil {
-					return err
-				}
-				defer resp.Body.Close()
-				// Writer the body to file
-				_, err = io.Copy(out, resp.Body)
-				if err != nil {
-					return err
-				}
+		url := d.Get("url").(string)
+		if len(url) > 0 {
+			// Create the file
+			out, err := os.Create(image)
+			if err != nil {
+				return err
+			}
+			defer out.Close()
+			// Get the data
+			log.Printf("[DEBUG] Downloading image: %s", url)
+			resp, err := http.Get(url)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			// Writer the body to file
+			_, err = io.Copy(out, resp.Body)
+			if err != nil {
+				return err
 			}
 		}
 	}
-	image := d.Get("image").(string)
 
 	/* Get gold folder and machine folder */
 	usr, err := user.Current()
